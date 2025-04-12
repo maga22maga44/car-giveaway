@@ -1,0 +1,344 @@
+{% extends 'base.html' %}
+
+{% block title %}Панель администратора{% endblock %}
+
+{% block content %}
+<style>
+    /* Стили для улучшения видимости таблицы участников */
+    .table {
+        background-color: #ffffff;
+        color: #000000;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .table thead {
+        background-color: #007bff;
+        color: white;
+    }
+    .table thead th {
+        font-weight: 600;
+        padding: 12px 8px;
+    }
+    .table tbody tr:nth-child(even) {
+        background-color: #f0f8ff;
+    }
+    .table tbody tr:hover {
+        background-color: #e6f2ff;
+    }
+    .table td {
+        padding: 10px 8px;
+        vertical-align: middle;
+    }
+    /* Другие стили для админки */
+    .admin-container {
+        background-color: #f8f9fa;
+        border-radius: 15px;
+        padding: 25px;
+        color: #000000;
+    }
+    .card {
+        background-color: #ffffff;
+        color: #000000;
+    }
+    .card-header {
+        background-color: #007bff;
+        color: white;
+        font-weight: 600;
+    }
+    h2, h3 {
+        color: #007bff;
+    }
+    h3:after {
+        display: none;
+    }
+    .form-control {
+        background-color: #ffffff;
+        color: #000000;
+        border: 1px solid #ced4da;
+    }
+    .form-control:focus {
+        background-color: #ffffff;
+        color: #000000;
+    }
+</style>
+
+<div class="admin-container">
+    <h2 class="mb-4">Панель администратора</h2>
+    <h3>Список участников розыгрыша</h3>
+
+    <div class="mb-3 d-flex justify-content-between align-items-center">
+        <div class="col-md-8">
+            <input type="text" id="searchInput" class="form-control" placeholder="Поиск по имени или телефону...">
+        </div>
+        <div class="col-md-3 text-end">
+            <a href="{{ url_for('export_to_excel') }}" class="btn btn-success">
+                <i class="fas fa-file-excel me-2"></i>Экспорт в Excel
+            </a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>№</th>
+                    <th>ФИО</th>
+                    <th>Телефон</th>
+                    <th>Возраст</th>
+                    <th>Пол</th>
+                    <th>Город</th>
+                    <th>Дата регистрации</th>
+                    <th>Подробности местоположения</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="participantsTable">
+                {% for participant in participants %}
+                <tr data-id="{{ loop.index0 }}">
+                    <td>{{ loop.index }}</td>
+                    <td>{{ participant.full_name }}</td>
+                    <td>{{ participant.phone }}</td>
+                    <td>{{ participant.age }}</td>
+                    <td>{% if participant.gender == 'male' %}Мужской{% else %}Женский{% endif %}</td>
+                    <td>
+                        {% if participant.coordinates and participant.coordinates.city %}
+                            <i class="fas fa-map-marker-alt text-primary me-1"></i> {{ participant.coordinates.city|capitalize }}
+                        {% elif participant.location and participant.location.city %}
+                            <i class="fas fa-globe text-secondary me-1"></i> {{ participant.location.city|capitalize }}
+                        {% else %}
+                            <span class="text-muted"><i class="fas fa-question-circle me-1"></i> Н/Д</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ participant.registration_time }}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#locationModal{{ loop.index }}">
+                            Подробнее
+                        </button>
+                        
+                        <!-- Модальное окно для подробной информации о местоположении -->
+                        <div class="modal fade" id="locationModal{{ loop.index }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Информация о местоположении</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <h6>Данные участника:</h6>
+                                        <p><strong>ФИО:</strong> {{ participant.full_name }}</p>
+                                        <p><strong>Телефон:</strong> {{ participant.phone }}</p>
+                                        
+                                        <h6>Данные о местоположении:</h6>
+                                        <p><strong>IP-адрес:</strong> {{ participant.ip_address }}</p>
+                                        
+                                        {% if participant.location %}
+                                        <p><strong>Город:</strong> {{ participant.location.city|capitalize }}</p>
+                                        <p><strong>Регион:</strong> {{ participant.location.region }}</p>
+                                        <p><strong>Страна:</strong> {{ participant.location.country }}</p>
+                                        {% else %}
+                                        <p>Информация о местоположении по IP отсутствует</p>
+                                        {% endif %}
+                                        
+                                        {% if participant.coordinates %}
+                                        <h6>Координаты (из браузера):</h6>
+                                        <p><strong>Широта:</strong> {{ participant.coordinates.latitude }}</p>
+                                        <p><strong>Долгота:</strong> {{ participant.coordinates.longitude }}</p>
+                                        <p>
+                                            <a href="https://www.google.com/maps?q={{ participant.coordinates.latitude }},{{ participant.coordinates.longitude }}" 
+                                               target="_blank" class="btn btn-sm btn-primary">
+                                                Посмотреть на карте
+                                            </a>
+                                        </p>
+                                        {% else %}
+                                        <p>Координаты из браузера не предоставлены</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-danger delete-participant" data-index="{{ loop.index0 }}">
+                            Удалить
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" class="text-center">Пока нет зарегистрированных участников</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        Статистика
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Всего участников:</strong> {{ participants|length }}</p>
+                        <p><strong>Мужчин:</strong> {{ participants|selectattr('gender', 'equalto', 'male')|list|length }}</p>
+                        <p><strong>Женщин:</strong> {{ participants|selectattr('gender', 'equalto', 'female')|list|length }}</p>
+                        <div class="d-flex gap-2">
+                            <button id="deleteAllParticipants" class="btn btn-danger">Удалить всех участников</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для подтверждения удаления участников -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить <strong>всех</strong> участников розыгрыша?</p>
+                <p class="text-danger">Это действие нельзя отменить!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для подтверждения удаления одного участника -->
+<div class="modal fade" id="deleteSingleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить этого участника?</p>
+                <p><strong>ФИО: </strong><span id="deleteName"></span></p>
+                <p class="text-danger">Это действие нельзя отменить!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteSingle">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Поиск по таблице
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('keyup', function() {
+            const searchText = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#participantsTable tr');
+            
+            rows.forEach(row => {
+                const name = row.cells[1]?.textContent.toLowerCase() || '';
+                const phone = row.cells[2]?.textContent.toLowerCase() || '';
+                
+                if (name.includes(searchText) || phone.includes(searchText)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+        
+        // Удаление всех участников
+        const deleteAllBtn = document.getElementById('deleteAllParticipants');
+        const deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        const confirmDeleteBtn = document.getElementById('confirmDelete');
+        
+        deleteAllBtn.addEventListener('click', function() {
+            deleteConfirmModal.show();
+        });
+        
+        confirmDeleteBtn.addEventListener('click', function() {
+            // Отправка запроса на удаление всех участников
+            fetch('/delete-participants', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Обновляем страницу после успешного удаления
+                    window.location.reload();
+                } else {
+                    alert('Произошла ошибка при удалении участников: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при отправке запроса');
+            })
+            .finally(() => {
+                deleteConfirmModal.hide();
+            });
+        });
+        
+        // Удаление отдельного участника
+        const deleteSingleModal = new bootstrap.Modal(document.getElementById('deleteSingleModal'));
+        const confirmDeleteSingleBtn = document.getElementById('confirmDeleteSingle');
+        let participantToDelete = null;
+        
+        document.querySelectorAll('.delete-participant').forEach(button => {
+            button.addEventListener('click', function() {
+                const index = this.getAttribute('data-index');
+                const row = this.closest('tr');
+                const name = row.cells[1].textContent;
+                participantToDelete = index;
+                
+                document.getElementById('deleteName').textContent = name;
+                deleteSingleModal.show();
+            });
+        });
+        
+        confirmDeleteSingleBtn.addEventListener('click', function() {
+            if (participantToDelete !== null) {
+                // Отправка запроса на удаление участника
+                fetch(`/delete-participant/${participantToDelete}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Обновляем страницу после успешного удаления
+                        window.location.reload();
+                    } else {
+                        alert('Произошла ошибка при удалении участника: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка:', error);
+                    alert('Произошла ошибка при отправке запроса');
+                })
+                .finally(() => {
+                    deleteSingleModal.hide();
+                    participantToDelete = null;
+                });
+            }
+        });
+    });
+</script>
+{% endblock %} 
